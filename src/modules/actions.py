@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Callable, Tuple
 import json
 from time import sleep
@@ -141,25 +142,32 @@ def process_next_action(
 
     try:
         if data["action"] == "tap":
+            logging.info("Action Tap")
             if platform == "web":
                 process_web_click(data, driver)
             else:
                 process_mobile_tap(data, driver)
             data["result"] = "success"
         elif data["action"] == "input":
+            logging.info("Action Input")
             if platform == "web":
                 process_web_input(data, driver)
             else:
                 process_mobile_input(data, driver)
             data["result"] = "success"
         elif data["action"] == "swipe":
+            logging.info("Action Swipe")
             if platform == "web":
                 process_web_scroll(data, driver)
             else:
                 process_mobile_swipe(data, driver)
             data["result"] = "success"
         elif data["action"] == "wait":
+            logging.info("Action Wait")
             sleep(data.get("timeout", 5000) / 1000)
+            data["result"] = "success"
+        elif data["action"] == "verify":
+            # Todo: to create the verify actions based on the screenshot
             data["result"] = "success"
         else:
             print(f"Unknown action: {data['action']}")

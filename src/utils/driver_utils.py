@@ -26,10 +26,10 @@ def create_driver(appium_server: str, platform_config: dict[str, Any]) -> Any:
             "appium:udid": platform_config.get("udid"),
             "appium:bundleId": platform_config.get("bundleId"),
             "appium:wdaLocalPort": platform_config.get("wdaLocalPort", "8100"),
-        }
+            }
         return appium_webdriver.Remote(
             server, options=AppiumOptions().load_capabilities(capabilities)
-        )
+            )
 
     if platform == "android":
         server = f"http://{appium_server}/wd/hub"

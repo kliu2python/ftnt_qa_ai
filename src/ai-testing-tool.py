@@ -8,9 +8,9 @@ from PIL import Image
 import xml.etree.ElementTree as ET
 import yaml
 
-from driver_utils import create_driver, keep_driver_live
-from llm_client import generate_next_action, read_file_content
-from actions import process_next_action
+from src.utils.driver_utils import create_driver, keep_driver_live
+from src.modules.llm_client import generate_next_action, read_file_content
+from src.modules.actions import process_next_action
 
 
 class PlatformDetector:
