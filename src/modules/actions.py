@@ -12,6 +12,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+from .llm_client import verify_result
+
 
 def parse_bounds(bounds: str) -> Tuple[int, int, int, int]:
     """Parse a bounds string into integer coordinates."""
@@ -108,9 +110,7 @@ def process_mobile_swipe(data: dict[str, Any], driver: Any) -> None:
     swipe_end_x = data["swipe_end_x"]
     swipe_end_y = data["swipe_end_y"]
     duration = data.get("duration", 500)
-    driver.swipe(
-        swipe_start_x, swipe_start_y, swipe_end_x, swipe_end_y, duration
-    )
+    driver.swipe(swipe_start_x, swipe_start_y, swipe_end_x, swipe_end_y, duration)
     sleep(duration / 1000)
 
 
@@ -131,12 +131,8 @@ def process_next_action(
         return None, None, '{"action": "error", "result": "Invalid JSON"}'
 
     if data["action"] in {"error", "finish"}:
-        page_source_file = take_page_source_fn(
-            driver, folder, step_name, platform
-        )
-        screenshot_file = take_screenshot_fn(
-            driver, folder, step_name, platform
-        )
+        page_source_file = take_page_source_fn(driver, folder, step_name, platform)
+        screenshot_file = take_screenshot_fn(driver, folder, step_name, platform)
         data["result"] = "success"
         return page_source_file, screenshot_file, json.dumps(data)
 
@@ -167,8 +163,53 @@ def process_next_action(
             sleep(data.get("timeout", 5000) / 1000)
             data["result"] = "success"
         elif data["action"] == "verify":
-            # Todo: to create the verify actions based on the screenshot
-            data["result"] = "success"
+            logging.info("Action Verify")
+            if any(key in data for key in ["xpath", "css", "bounds"]):
+                try:
+                    if "xpath" in data:
+                        if platform == "web":
+                            element = driver.find_element(By.XPATH, data["xpath"])
+                        else:
+                            element = driver.find_element(AppiumBy.XPATH, data["xpath"])
+                    elif "css" in data and platform == "web":
+                        element = driver.find_element(By.CSS_SELECTOR, data["css"])
+                    elif "bounds" in data and platform == "web":
+                        left, top, right, bottom = parse_bounds(data["bounds"])
+                        click_x = left + (right - left) / 2
+                        click_y = top + (bottom - top) / 2
+                        element = driver.execute_script(
+                            "return document.elementFromPoint(arguments[0], arguments[1]);",
+                            click_x,
+                            click_y,
+                        )
+                    else:
+                        raise ValueError("Unsupported locator for verification")
+
+                    expected_text = data.get("text")
+                    check_clickable = data.get("clickable")
+                    verified = True
+
+                    if expected_text is not None:
+                        actual_text = (
+                            element.text
+                            if platform == "web"
+                            else element.get_attribute("text") or element.text
+                        )
+                        if actual_text != expected_text:
+                            data["actual_text"] = actual_text
+                            verified = False
+
+                    if check_clickable:
+                        is_clickable = element.is_enabled() and element.is_displayed()
+                        data["clickable"] = is_clickable
+                        verified = verified and is_clickable
+
+                    data["verified"] = verified
+                    data["result"] = "success" if verified else "failure"
+                except Exception as err:
+                    data["result"] = f"error: {err}"
+            else:
+                data["result"] = "success"
         else:
             print(f"Unknown action: {data['action']}")
             data["result"] = "unknown action"
@@ -178,4 +219,11 @@ def process_next_action(
 
     page_source_file = take_page_source_fn(driver, folder, step_name, platform)
     screenshot_file = take_screenshot_fn(driver, folder, step_name, platform)
+
+    if data.get("action") == "verify" and data.get("prompt"):
+        response = verify_result(
+            data["prompt"], page_source_file, screenshot_file, platform
+        )
+        data["verification"] = response
+
     return page_source_file, screenshot_file, json.dumps(data)

@@ -121,3 +121,47 @@ Next action:"""
     except json.JSONDecodeError as err:
         print(f"Error parsing Ollama response: {err}")
         return '{"action": "error", "reason": "Invalid JSON response"}'
+
+
+def verify_result(
+    question: str,
+    page_source_file: str,
+    page_screenshot: str,
+    platform: str,
+) -> str:
+    """Verify page state using the language model service."""
+
+    screenshot_base64 = image_to_base64(page_screenshot)
+    page_source = read_file_content(page_source_file) or ""
+
+    full_prompt = (
+        f"{question}\n\n"
+        f"# Page Source ({platform.upper()})\n"
+        f"```{'xml' if platform in ['ios', 'android'] else 'html'}\n"
+        f"{page_source}\n```"
+    )
+
+    payload = {
+        "model": "llama3:70b",
+        "prompt": full_prompt,
+        "images": [screenshot_base64],
+        "stream": False,
+        "options": {"num_predict": 200},
+    }
+
+    try:
+        response = requests.post(
+            "http://172.30.91.194:11434/api/generate",
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=300,
+        )
+        response.raise_for_status()
+        result = response.json()
+        return result.get("response", "")
+    except requests.exceptions.RequestException as err:
+        print(f"Error calling Ollama API: {err}")
+        return ""
+    except json.JSONDecodeError as err:
+        print(f"Error parsing Ollama response: {err}")
+        return ""
