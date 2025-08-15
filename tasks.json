@@ -1,7 +1,12 @@
 [
     {
-        "task": "check version of FortiToken Mobile",
-        "details": "When you use FortiToken Mobile, always check the Version while clicking Info button, recording the steps. When you see version, record the number and stop testing",
+        "task": "Tap Info button",
+        "details": "Tap Info button",
+        "skip": false
+    },
+    {
+        "task": "Read the value of Version",
+        "details": "Read the value of Version",
         "skip": false
     }
 ]
